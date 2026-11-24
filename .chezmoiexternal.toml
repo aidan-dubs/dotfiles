@@ -2,6 +2,10 @@
 {{- $zoxideArch := dict "amd64" "x86_64" "arm64" "aarch64" -}}
 {{- $zoxideOS := dict "linux" "unknown-linux-musl" "darwin" "apple-darwin" -}}
 
+{{- $nvimOS := "linux" -}} {{- if eq .chezmoi.os "darwin" }}{{ $nvimOS = "macos" }}{{ end -}}
+{{- $nvimArch := "x86_64" -}}
+{{- if eq .chezmoi.arch "arm64" }}{{ $nvimArch = "arm64" }}{{ end -}}
+
 {{- if .nvim.enabled }}
 {{-   $url := .nvim.customUrl }}
 {{-   if eq .nvim.source "forgejo" }}
@@ -9,6 +13,13 @@
 {{-   else if eq .nvim.source "github" }}
 {{-     $url = "https://github.com/aidan-dubs/nvim.git" }}
 {{-   end }}
+
+[".local"]
+    type = "archive"
+    url = {{ gitHubLatestReleaseAssetURL "neovim/neovim" (printf "nvim-%s-%s.tar.gz" $nvimOS $nvimArch ) | quote }}
+    stripComponents = 1
+    include = ["*/bin/**", "*/lib/**", "*/share/nvim/**"]
+
 [".config/nvim"]
 type = "git-repo"
 url = {{ $url | quote }}
