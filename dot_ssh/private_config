@@ -1,0 +1,11 @@
+CanonicalizeHostname yes
+CanonicalizeFallbackLocal yes
+
+Host *
+    # Safe option for ghostty. Add entries with SetEnv TERM=xterm-ghostty
+    # to use all ghostty features
+    SetEnv TERM=xterm-256color
+    SendEnv COLORTERM TERM_PROGRAM TERM_PROGRAM_VERSION
+    ForwardAgent yes
+
+Include config.d/*

@@ -1,0 +1,8 @@
+# .bash_profile
+
+. "$HOME/.config/shell/env"
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi

@@ -1,0 +1,63 @@
+{{- /* Map chezmoi's os/arch names to zoxide's release naming */ -}}
+{{- $zoxideArch := dict "amd64" "x86_64" "arm64" "aarch64" -}}
+{{- $zoxideOS := dict "linux" "unknown-linux-musl" "darwin" "apple-darwin" -}}
+
+{{- if .nvim.enabled }}
+{{-   $url := .nvim.customUrl }}
+{{-   if eq .nvim.source "forgejo" }}
+{{-     $url = "ssh://git@forge.aidan-w.dev/aidan/nvim.git" }}
+{{-   else if eq .nvim.source "github" }}
+{{-     $url = "https://github.com/aidan-dubs/nvim.git" }}
+{{-   end }}
+[".config/nvim"]
+    type = "git-repo"
+    url = {{ $url | quote }}
+    refreshPeriod = "168h"
+{{- end }}
+
+{{- if .sshPrivate.enabled }}
+{{-   $url := .sshPrivate.customUrl }}
+{{-   if eq .sshPrivate.source "forgejo" }}
+{{-     $url = "ssh://git@forge.aidan-w.dev/aidan/ssh-private-config.git" }}
+{{-   end }}
+[".ssh/private"]
+    type = "git-repo"
+    url = {{ $url | quote }}
+    refreshPeriod = "168h"
+{{- end }}
+
+[".config/oh-my-zsh"]
+    type = "archive"
+    url = "https://github.com/ohmyzsh/ohmyzsh/archive/master.tar.gz"
+    stripComponents = 1
+    refreshPeriod = "168h"
+
+[".config/oh-my-zsh/custom/plugins/zsh-autosuggestions"]
+    type = "archive"
+    url = "https://github.com/zsh-users/zsh-autosuggestions/archive/master.tar.gz"
+    stripComponents = 1
+    refreshPeriod = "168h"
+
+[".config/oh-my-zsh/custom/plugins/fzf-tab"]
+    type = "archive"
+    url = "https://github.com/Aloxaf/fzf-tab/archive/master.tar.gz"
+    stripComponents = 1
+    refreshPeriod = "168h"
+
+[".config/oh-my-zsh/custom/plugins/zsh-syntax-highlighting"]
+{{- $email := promptStringOnce . "email" "Git email address" "you@example.com" -}}    type = "archive"
+    url = "https://github.com/zsh-users/zsh-syntax-highlighting/archive/master.tar.gz"
+    stripComponents = 1
+    refreshPeriod = "168h"
+
+[".local/bin/fzf"]
+    type = "archive-file"
+    url = {{ gitHubLatestReleaseAssetURL "junegunn/fzf" (printf "fzf-*-%s_%s.tar.gz" .chezmoi.os .chezmoi.arch) | quote }}
+    path = "fzf"
+    executable = true
+
+[".local/bin/zoxide"]
+    type = "archive-file"
+    url = {{ gitHubLatestReleaseAssetURL "ajeetdsouza/zoxide" (printf "zoxide-*-%s-%s.tar.gz" .chezmoi.arch .chezmoi.os) | quote }}
+    path = "zoxide"
+    executable = true

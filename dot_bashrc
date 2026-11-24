@@ -1,0 +1,44 @@
+# .bashrc
+#
+# Ghostty shell integration for Bash. This must be at the top of your bashrc!
+if [ -n "${GHOSTTY_RESOURCES_DIR}" ]; then
+    builtin source "${GHOSTTY_RESOURCES_DIR}/shell-integration/bash/ghostty.bash"
+fi
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+    . /etc/bashrc
+fi
+
+. "$HOME/.config/shell/env"
+
+shopt -s histappend
+shopt -s checkwinsize
+shopt -s autocd
+set -o noclobber
+
+
+if command -v nvim >/dev/null 2>&1; then
+    export EDITOR='nvim'
+elif command -v vim >/dev/null 2>&1; then
+    export EDITOR='vim'
+else
+    export EDITOR='vi'
+fi
+
+alias c="clear"
+alias q="exit"
+alias e="$EDITOR"
+alias se="sudoedit"
+alias es="sudoedit"
+
+
+# Use Bitwarden's SSH agent socket only in local sessions so SSH forwarding isn't overridden.
+bitwarden_sock="$HOME/.var/app/com.bitwarden.desktop/data/.bitwarden-ssh-agent.sock"
+if [[ -S "$bitwarden_sock" ]]; then
+    if [[ -z "${SSH_CONNECTION-}${SSH_CLIENT-}${SSH_TTY-}" ]]; then
+        export SSH_AUTH_SOCK="$bitwarden_sock"
+    fi
+fi
+
+PROMPT_COMMAND='PS1_CMD1=$(git branch --show-current 2>/dev/null)'; PS1='\[\e[93m\]\u\[\e[0m\]@\[\e[92m\]\H\[\e[0m\]:\[\e[96m\]\w\[\e[0m\] \[\e[95m\]${PS1_CMD1}\n\[\e[92m\]->\[\e[0m\] '

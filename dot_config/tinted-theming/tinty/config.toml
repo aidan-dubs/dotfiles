@@ -1,0 +1,23 @@
+shell = "sh -c '{}'"
+
+[[items]]
+path = "https://github.com/tinted-theming/tinted-terminal"
+name = "tinted-terminal"
+themes-dir = "themes/ghostty"
+hook = """
+variant="${TINTY_SCHEME_VARIANT:-dark}"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}"
+mkdir -p "$config_dir/ghostty/themes"
+command cp -f "$TINTY_THEME_FILE_PATH" "$config_dir/ghostty/themes/tinted-$variant"
+mkdir -p "$HOME/.local/state/tinted-theming"
+echo "${TINTY_SCHEME_ID}" > "$HOME/.local/state/tinted-theming/scheme_$variant"
+sh "$config_dir/tinted-theming/tinty/pdfterm-theme.sh"
+"""
+supported-systems = ["base16", "base24"]
+
+[[items]]
+name = "tinted-shell"
+path = "https://github.com/tinted-theming/tinted-shell"
+themes-dir = "scripts"
+hook = "echo do nothing"
+supported-systems = ["base16", "base24"]

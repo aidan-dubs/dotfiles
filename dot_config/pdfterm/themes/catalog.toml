@@ -1,0 +1,1 @@
+{ themes = ["~/.config/pdfterm/themes/tinty-light.toml", "~/.config/pdfterm/themes/tinty-dark.toml"] }

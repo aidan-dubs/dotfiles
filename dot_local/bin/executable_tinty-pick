@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+set -u
+
+export FAVORITES="${XDG_CONFIG_HOME:-$HOME/.config}/tinty-pick/favorites"
+export SCRIPT_PATH="$0"
+
+if [[ ${1:-} == --render ]]; then
+    [[ $# == 2 && ( $2 == dark || $2 == light ) ]] || exit 2
+    favorites_only=$(<"$STATE/favorites-only")
+    awk -F, -v favorites_only="$favorites_only" '
+        FILENAME == ARGV[1] { favorites[$0] = 1; next }
+        {
+            id = $2
+            if (!favorites_only || id in favorites) {
+                marker = id in favorites ? "★" : "☆"
+                print marker "  " $1 "  " id
+            }
+        }
+    ' "$FAVORITES" "$STATE/$2.list"
+    exit
+fi
+export THEME_PATH="${XDG_DATA_HOME:-$HOME/.local/share}/tinted-theming/tinty/repos/tinted-shell/scripts"
+export LAST_PICK="${XDG_STATE_HOME:-$HOME/.local/state}/tinty-pick"
+export CUR_DARK="${XDG_STATE_HOME:-$HOME/.local/state}/tinted-theming/scheme_dark"
+export CUR_LIGHT="${XDG_STATE_HOME:-$HOME/.local/state}/tinted-theming/scheme_light"
+export INITIAL_DARK="$(cat "$CUR_DARK")"
+export INITIAL_LIGHT="$(cat "$CUR_LIGHT")"
+
+reset_terminal_colors() {
+    printf '\033]104\033\\\033]110\033\\\033]111\033\\\033]112\033\\' > /dev/tty
+}
+
+list_themes() {
+    tinty list --json | jq -r --arg v "$1" '.[] | select(.variant == $v) | "\(.name) (\(.system)),\(.id)"' | tr -s ' ' | sort
+}
+
+export STATE=$(mktemp -d)
+trap 'rm -rf "$STATE"' EXIT
+trap 'reset_terminal_colors' EXIT
+
+fastfetch --pipe false > "$STATE/fetch.txt" 2> /dev/null
+
+if [[ "$(gsettings get org.gnome.desktop.interface color-scheme)" == "'prefer-dark'" ]]; then
+    variant=dark
+else
+    variant=light
+fi
+
+# TODO:
+# - Add way to blacklist themes
+
+if ! mkdir -p "${FAVORITES%/*}" || ! touch "$FAVORITES"; then
+    printf 'Unable to initialize favorites file: %s\n' "$FAVORITES" >&2
+    exit 1
+fi
+
+list_themes dark  > "$STATE/dark.list"
+list_themes light > "$STATE/light.list"
+printf '0\n' > "$STATE/favorites-only"
+"$SCRIPT_PATH" --render "$variant" > "$STATE/initial.list" || exit 1
+
+ENTER_TRANSFORM='[[ -n $FZF_CURRENT_ITEM ]] || exit;
+    if [[ $FZF_PROMPT == dark* ]]; then
+        if [[ $FZF_LIST_LABEL == *"Light ●"* ]]; then
+            echo "execute-silent(tinty apply {3})+change-list-label(Dark ●  Light ●)+accept";
+        else
+            printf -v render_command "%q --render light" "$SCRIPT_PATH"
+            echo "execute-silent(tinty apply {3})+change-list-label(Dark ●  Light ○)+change-prompt(light> )+reload($render_command)";
+        fi;
+    else
+        if [[ $FZF_LIST_LABEL == *"Dark ●"* ]]; then
+            echo "execute-silent(tinty apply {3})+change-list-label(Dark ●  Light ●)+accept";
+        else
+            printf -v render_command "%q --render dark" "$SCRIPT_PATH"
+            echo "execute-silent(tinty apply {3})+change-list-label(Dark ○  Light ●)+change-prompt(dark> )+reload($render_command)";
+        fi;
+    fi'
+
+TAB_TRANSFORM='if [[ ! $FZF_PROMPT =~ dark ]]; then
+    next_variant=dark
+    next_prompt=dark
+else
+    next_variant=light
+    next_prompt=light
+fi
+theme="${FZF_CURRENT_ITEM#*  }"
+theme="${theme%  *}"
+theme_name="${theme%% *}"
+system="${theme#*\(}"
+system="${system%%\)*}"
+printf -v render_command "%q --render %q" "$SCRIPT_PATH" "$next_variant"
+echo "change-prompt($next_prompt> )+execute-silent(tinty apply {3})+change-query(${system} ^${theme_name})+reload($render_command)"'
+
+FAVORITE_TRANSFORM='[[ -n $FZF_CURRENT_ITEM ]] || exit
+favorite_id="${FZF_CURRENT_ITEM##*  }"
+if grep -Fxq -- "$favorite_id" "$FAVORITES"; then
+    if ! awk -v id="$favorite_id" '\''$0 != id'\'' "$FAVORITES" > "$STATE/favorites.tmp" ||
+        ! mv "$STATE/favorites.tmp" "$FAVORITES"; then
+        printf "Unable to remove favorite: %s\n" "$favorite_id" >&2
+        exit 1
+    fi
+else
+    grep_status=$?
+    if [[ $grep_status != 1 ]]; then
+        printf "Unable to read favorites file: %s\n" "$FAVORITES" >&2
+        exit 1
+    fi
+    if ! printf "%s\n" "$favorite_id" >> "$FAVORITES"; then
+        printf "Unable to save favorite: %s\n" "$favorite_id" >&2
+        exit 1
+    fi
+fi
+variant="${FZF_PROMPT%%>*}"
+printf -v render_command "%q --render %q" "$SCRIPT_PATH" "$variant"
+echo "reload($render_command)"'
+
+FILTER_TRANSFORM='if [[ $(<"$STATE/favorites-only") == 1 ]]; then
+    if ! printf "0\n" > "$STATE/favorites-only"; then
+        printf "Unable to update favorites filter state\n" >&2
+        exit 1
+    fi
+    header="ctrl-f: toggle favorite · ctrl-v: favorites only"
+else
+    if ! printf "1\n" > "$STATE/favorites-only"; then
+        printf "Unable to update favorites filter state\n" >&2
+        exit 1
+    fi
+    header="Favorites only · ctrl-v: show all themes"
+fi
+variant="${FZF_PROMPT%%>*}"
+printf -v render_command "%q --render %q" "$SCRIPT_PATH" "$variant"
+echo "change-header($header)+reload($render_command)"'
+
+export FZF_DEFAULT_OPTS=
+fzf --ansi --no-multi \
+    --delimiter='  ' --with-nth=1,2 --nth=2 \
+    --accept-nth=3 \
+    --list-label='Dark ○  Light ○' \
+    --scheme=default \
+    --list-border \
+    --ignore-case \
+    --extended \
+    --bind change:first \
+    --prompt="$variant> " \
+    --header='ctrl-f: toggle favorite · ctrl-v: favorites only' \
+    --bind "enter:transform:$ENTER_TRANSFORM" \
+    --bind "tab:transform:$TAB_TRANSFORM" \
+    --bind "ctrl-f:transform:$FAVORITE_TRANSFORM" \
+    --bind "ctrl-v:transform:$FILTER_TRANSFORM" \
+    --bind 'esc,ctrl-c,ctrl-g,ctrl-q:execute-silent[tinty apply "$INITIAL_DARK"; tinty apply "$INITIAL_LIGHT"]+abort' \
+    --preview '. ${THEME_PATH}/{3}.sh; cat "${STATE}/fetch.txt"' \
+    --preview-window='right:60%' \
+    < "$STATE/initial.list"
+
+reset_terminal_colors
+pkill -SIGUSR2 ghostty

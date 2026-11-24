@@ -1,0 +1,49 @@
+{{- $name := promptStringOnce . "name" "Git full name" -}}
+{{- $email := promptStringOnce . "email" "Git email address" "you@example.com" -}}
+
+
+{{- /* Nvim */ -}}
+{{- $nvimEnabled := promptBoolOnce . "nvim.enabled" "Install nvim config" true -}}
+{{- $nvimSource := "github" -}}
+{{- $nvimCustom := "" -}}
+{{- if $nvimEnabled -}}
+{{-   $nvimSource = promptChoiceOnce . "nvim.source" "Nvim config source" (list "forgejo" "github" "custom") "github" -}}
+{{-   if eq $nvimSource "custom" -}}
+{{-     $nvimCustom = promptStringOnce . "nvim.customUrl" "Custom nvim repo URL" -}}
+{{-   end -}}
+{{- end -}}
+
+{{- /* Private SSH config */ -}}
+{{- $sshEnabled := promptBoolOnce . "sshPrivate.enabled" "Install private SSH config" false -}}
+{{- $sshSource := "forgejo" -}}
+{{- $sshCustom := "" -}}
+{{- if $sshEnabled -}}
+{{-   $sshSource = promptChoiceOnce . "sshPrivate.source" "SSH config source" (list "forgejo" "custom") "custom" -}}
+{{-   if eq $sshSource "custom" -}}
+{{-     $sshCustom = promptStringOnce . "sshPrivate.customUrl" "Custom SSH config repo URL" -}}
+{{-   end -}}
+{{- end -}}
+
+[data]
+    email = {{ $email | quote }}
+    name = {{ $name | quote }}
+[data.nvim]
+    enabled = {{ $nvimEnabled }}
+    source = {{ $nvimSource | quote }}
+    customUrl = {{ $nvimCustom | quote }}
+
+[data.sshPrivate]
+    enabled = {{ $sshEnabled }}
+    source = {{ $sshSource | quote }}
+    customUrl = {{ $sshCustom | quote }}
+[git]
+    autoCommit = true
+    autoPush = true
+[merge]
+    command = "nvim"
+    args = [
+        "-d",
+        '{{ "{{ .Destination }}" }}',
+        '{{ "{{ .Source }}" }}',
+        '{{ "{{ .Target }}" }}'
+    ]

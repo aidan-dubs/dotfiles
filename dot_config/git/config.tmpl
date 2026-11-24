@@ -1,0 +1,27 @@
+[user]
+    name = {{ .name }}
+    email = {{ .email }}
+[merge]
+    tool = nvim
+[init]
+    defaultBranch = main
+[pull]
+    rebase = false
+[status]
+    branch = true
+    showStash = true
+[push]
+    autoSetupRemote = true
+[core]
+    editor = nvim
+[mergetool "nvim"]
+    cmd = nvim -c \"DiffviewOpen\"
+    trustExitCode = true
+[diff]
+    tool = nvim
+[difftool "nvim"]
+    cmd = nvim -c \"DiffviewOpen $LOCAL $REMOTE\"
+[http]
+	lowSpeedLimit = 1000
+	lowSpeedTime = 60
+	postBuffer = 524288000
